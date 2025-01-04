@@ -1,65 +1,85 @@
-from services.preprocessing.text_cleaner import TextCleaner
-from services.preprocessing.vectorizer import DocumentVectorizer
-from services.preprocessing.embeddings import BERTEmbeddings
-from services.topic_modeling.lda_model import TopicModeler
-from services.topic_modeling.clustering import TopicClusterer
-from services.topic_modeling.topic_validator import TopicValidator
-from services.utils.data_loader import DataLoader
-from services.utils.matrix_operations import MatrixOperations
+# from services.preprocessing.text_cleaner import TextCleaner
+# from services.preprocessing.vectorizer import DocumentVectorizer
+# from services.preprocessing.embeddings import BERTEmbeddings
+# from services.topic_modeling.lda_model import TopicModeler
+# from services.topic_modeling.clustering import TopicClusterer
+# from services.topic_modeling.topic_validator import TopicValidator
+# from services.utils.data_loader import DataLoader
+# from services.utils.matrix_operations import MatrixOperations
 from typing import Dict, List, Set
-import numpy as np
+from gensim import corpora
+from gensim.models import LdaMulticore
+import nltk
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('maxent_ne_chunker')
+nltk.download('words')
 
-class ThemeAnalyzer:
-    def __init__(self, num_topics: int = 10):
-        self.text_cleaner = TextCleaner()
-        self.vectorizer = DocumentVectorizer(max_features=1000)
-        self.bert_embeddings = BERTEmbeddings()
-        self.topic_modeler = TopicModeler(num_topics=num_topics)
-        self.clusterer = TopicClusterer(n_clusters=num_topics)
-        self.validator = TopicValidator()
+# class ThemeAnalyzer:
+#     def __init__(self, num_topics: int = 10):
+#         self.text_cleaner = TextCleaner()
+#         self.vectorizer = DocumentVectorizer(max_features=1000)
+#         self.bert_embeddings = BERTEmbeddings()
+#         self.topic_modeler = TopicModeler(num_topics=num_topics)
+#         self.clusterer = TopicClusterer(n_clusters=num_topics)
+#         self.validator = TopicValidator()
         
-    def preprocess_documents(self, documents: List[str]) -> List[str]:
-        """Preprocesa una lista de documentos"""
-        return [self.text_cleaner.preprocess_text(doc) for doc in documents]
+#     def preprocess_documents(self, documents: List[str]) -> List[str]:
+#         """Preprocesa una lista de documentos"""
+#         return [self.text_cleaner.preprocess_text(doc) for doc in documents]
     
-    def extract_topics(self, content: str) -> Set[str]:
-        """
-        Extrae tópicos de un texto usando una combinación de LDA y clustering
-        """
-        # Preprocesar el texto
-        processed_text = self.text_cleaner.preprocess_text(content)
-        documents = [processed_text]  # Convertir a lista para procesamiento
+#     def extract_topics(self, content: str) -> Set[str]:
+#         """
+#         Extrae tópicos de un texto usando una combinación de LDA y clustering
+#         """
+#         # Preprocesar el texto
+#         processed_text = self.text_cleaner.preprocess_text(content)
+#         documents = [processed_text]  # Convertir a lista para procesamiento
         
-        # Vectorización TF-IDF
-        doc_vectors, feature_names = self.vectorizer.fit_transform(documents)
+#         # Vectorización TF-IDF
+#         doc_vectors, feature_names = self.vectorizer.fit_transform(documents)
         
-        # Obtener embeddings BERT
-        bert_vectors = self.bert_embeddings.get_embeddings(documents)
+#         # Obtener embeddings BERT
+#         bert_vectors = self.bert_embeddings.get_embeddings(documents)
         
-        # Tokenizar para LDA
-        tokenized_docs = [self.text_cleaner.tokenize(doc) for doc in documents]
+#         # Tokenizar para LDA
+#         tokenized_docs = [self.text_cleaner.tokenize(doc) for doc in documents]
         
-        # Entrenar modelo LDA
-        self.topic_modeler.fit(tokenized_docs)
-        topic_distribution = self.topic_modeler.get_document_topics(tokenized_docs)
+#         # Entrenar modelo LDA
+#         self.topic_modeler.fit(tokenized_docs)
+#         topic_distribution = self.topic_modeler.get_document_topics(tokenized_docs)
         
-        # Obtener palabras clave por tópico
-        topic_words = self.topic_modeler.get_topic_words(num_words=8)
+#         # Obtener palabras clave por tópico
+#         topic_words = self.topic_modeler.get_topic_words(num_words=8)
         
-        # Combinar resultados
-        result_topics = set()
-        for topic_id, word_probs in topic_words.items():
-            top_words = [word for word, _ in word_probs[:3]]
-            result_topics.add(', '.join(top_words))
+#         # Combinar resultados
+#         result_topics = set()
+#         for topic_id, word_probs in topic_words.items():
+#             top_words = [word for word, _ in word_probs[:3]]
+#             result_topics.add(', '.join(top_words))
         
-        return result_topics
+#         return result_topics
 
 def findKeyWords(content: str) -> Set[str]:
     """
     Función de compatibilidad con la versión anterior
     """
-    analyzer = ThemeAnalyzer(num_topics=1)
-    return analyzer.extract_topics(content)
+    # analyzer = ThemeAnalyzer(num_topics=1)
+    # return analyzer.extract_topics(content)
+
+    stop_words = set(nltk.corpus.stopwords.words('spanish'))
+    documents = [content]
+    texts = [[word.lower() for word in nltk.word_tokenize(doc,"spanish",True) if not word in stop_words and word.isalnum()] for doc in documents]
+
+    dictionary = corpora.Dictionary(texts)
+    corpus = [dictionary.doc2bow(text) for text in texts]
+
+    lda_model = LdaMulticore(corpus=corpus, id2word=dictionary, num_topics=2, random_state=100, chunksize=100, passes=15, per_word_topics=True)
+
+    topics = lda_model.print_topics(num_words=8)
+
+    return topics
 
 def transformTopics(topics: List[tuple]) -> Set[str]:
     """

@@ -52,7 +52,7 @@ async def upload_docs(files: list[UploadFile] = File(...)):
             raise HTTPException(status_code=400, detail="Solo se permiten archivos .docx y .doc")
         else:
             content = docx2txt.process(file.file)
-            arrayTopics = []
+            arrayTopics = arrayTopics + transformTopics(findKeyWords(content))
         if(len(arrayTopics) > 0):
 
             print(arrayTopics)
@@ -62,5 +62,6 @@ async def upload_docs(files: list[UploadFile] = File(...)):
         else:
             return {"key_words": []}
     else:
+
         raise HTTPException(status_code=400, detail="Solo se aceptan archivos .doc o .docx")
 
